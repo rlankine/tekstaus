@@ -9,6 +9,7 @@ using std::endl;
 int main() try
 {
 	String s;
+	String t("Tekstaus");
 
 	return EXIT_SUCCESS;
 }
