@@ -31,17 +31,28 @@ SOFTWARE.
 
 struct String final
 {
-	struct data;
-
 	String();
 	String(String const&);
 	String(String const&, String const&);
-	String(String const&, size_t);
-	String(size_t, String const&);
+	String(String const&, int);
+	String(int, String const&);
+	String(char const*);
 	~String();
 
+	String& operator=(String const&);
+
+	operator char const* () const;
+
+	bool Get(char*, size_t) const;
+	int Length() const;
+	size_t Size() const;
+
+	struct data;
+
 private:
-	data* pData;
+	String(data const*);
+
+	mutable data const* pData;
 };
 
 //**********************************************************************************************************************
