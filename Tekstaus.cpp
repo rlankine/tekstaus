@@ -33,6 +33,35 @@ SOFTWARE.
 
 struct String::data : public Shared
 {
+	virtual String::data const* append(String::data const*) const { TODO; }
+	virtual String::data const* head(int) const { TODO; }
+	virtual String::data const* tail(int) const { TODO; }
+
+	virtual bool get(char*, size_t) const = 0;
+	virtual int length() const = 0;
+	virtual size_t size() const = 0;
+};
+
+/***********************************************************************************************************************
+*** StrEmpty
+***********************************************************************************************************************/
+
+struct StrEmpty final : public String::data, private ObjectGuard<StrEmpty>
+{
+	bool get(char* p, size_t n) const override final { if (p && n) *p = '\0'; return (p && n); }
+	int length() const override final { return 0; }
+	size_t size() const override final { return 1; }
+};
+
+/***********************************************************************************************************************
+*** StrBuffer
+***********************************************************************************************************************/
+
+struct StrBuffer final : public String::data, private ObjectGuard<StrBuffer>
+{
+	bool get(char* p, size_t n) const override final { TODO; }
+	int length() const override final { TODO; }
+	size_t size() const override final { TODO; }
 };
 
 /***********************************************************************************************************************
@@ -41,6 +70,9 @@ struct String::data : public Shared
 
 struct StrHead final : public String::data, private ObjectGuard<StrHead>
 {
+	bool get(char* p, size_t n) const override final { TODO; }
+	int length() const override final { TODO; }
+	size_t size() const override final { TODO; }
 };
 
 /***********************************************************************************************************************
@@ -49,6 +81,9 @@ struct StrHead final : public String::data, private ObjectGuard<StrHead>
 
 struct StrTail final : public String::data, private ObjectGuard<StrTail>
 {
+	bool get(char* p, size_t n) const override final { TODO; }
+	int length() const override final { TODO; }
+	size_t size() const override final { TODO; }
 };
 
 /***********************************************************************************************************************
@@ -57,6 +92,9 @@ struct StrTail final : public String::data, private ObjectGuard<StrTail>
 
 struct StrSum final : public String::data, private ObjectGuard<StrSum>
 {
+	bool get(char* p, size_t n) const override final { TODO; }
+	int length() const override final { TODO; }
+	size_t size() const override final { TODO; }
 };
 
 /***********************************************************************************************************************
@@ -68,28 +106,62 @@ String::String()
 	TODO;
 }
 
-String::String(String const&)
+String::String(String const& r) : pData(Shared::Clone(r.pData))
+{
+}
+
+String::String(String const& r, String const& s) : pData(r.pData->append(s.pData))
+{
+}
+
+String::String(String const& r, int n) : pData(r.pData->head(n))
+{
+}
+
+String::String(int n, String const& r) : pData(r.pData->tail(n))
+{
+}
+
+String::String(char const* p)
 {
 	TODO;
 }
 
-String::String(String const&, String const&)
+String::String(data const* p) : pData(p)
 {
-	TODO;
-}
-
-String::String(String const&, size_t)
-{
-	TODO;
-}
-
-String::String(size_t, String const&)
-{
-	TODO;
 }
 
 String::~String()
 {
+	Shared::Erase(pData);
+}
+
+String& String::operator=(String const& r)
+{
+	Shared::Clone(r.pData);
+	Shared::Erase(pData);
+	pData = r.pData;
+	return *this;
+}
+
+String::operator char const* () const
+{
+	TODO;
+}
+
+bool String::Get(char*p, size_t n) const
+{
+	return pData->get(p, n);
+}
+
+int String::Length() const
+{
+	return pData->length();
+}
+
+size_t String::Size() const
+{
+	return pData->size();
 }
 
 //**********************************************************************************************************************
