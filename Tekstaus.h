@@ -43,6 +43,11 @@ struct String final
 
 	operator char const* () const;
 
+	friend String operator+(String const&, String const&);
+
+	String Head(int) const;
+	String Tail(int) const;
+
 	bool Get(char*, size_t) const;
 	int Length() const;
 	size_t Size() const;
