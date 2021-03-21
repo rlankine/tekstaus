@@ -25,6 +25,11 @@ SOFTWARE.
 
 #pragma once
 
+//**********************************************************************************************************************
+
+using Byte_t = char;
+using Char_t = char32_t;
+
 /***********************************************************************************************************************
 *** String
 ***********************************************************************************************************************/
@@ -43,21 +48,25 @@ struct String final
 
 	operator char const* () const;
 
-	friend String operator+(String const&, String const&);
+	String Head(int n) const { return String(*this, n); }
+	String Tail(int n) const { return String(n, *this); }
 
-	String Head(int) const;
-	String Tail(int) const;
-
-	bool Get(char*, size_t) const;
+	void Get(char*, size_t) const;
 	int Length() const;
 	size_t Size() const;
 
 	struct data;
 
 private:
-	String(data const*);
-
+	String(data const* p) : pData(p) { }
 	mutable data const* pData;
 };
+
+//**********************************************************************************************************************
+
+inline String operator+(String const& r, String const& s)
+{
+	return String(r, s);
+}
 
 //**********************************************************************************************************************
