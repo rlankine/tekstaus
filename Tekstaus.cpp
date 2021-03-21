@@ -187,6 +187,8 @@ private:
 
 struct Tail final : public String::data, private ObjectGuard<Tail>
 {
+    // Tail(String::data const *p, int n) : pString(p), 
+
 private:
     String::data const* append(String::data const*) const override final { TODO; }
     String::data const* head(int) const override final { TODO; }
@@ -208,8 +210,9 @@ private:
     char const* origin() const noexcept override final { TODO; }
     int depth() const noexcept override final { TODO; }
 
-    String::data const* const p;
-    int n;
+    String::data const* const pString;
+    int nLength;
+    size_t nSize;
 };
 
 /***********************************************************************************************************************
