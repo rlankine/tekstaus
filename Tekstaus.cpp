@@ -41,11 +41,11 @@ SOFTWARE.
 struct String::data : public Shared
 {
     static String::data const* create(char const*);
-    static String::data const* create(Char_t, int);
+    static String::data const* create(Char_t, int) { TODO; }
 
     virtual String::data const* append(String::data const*) const { TODO; }
     virtual String::data const* head(int) const { TODO; }
-    virtual String::data const* tail(int) const { TODO; }
+    virtual String::data const* tail(int) const;
     virtual String::data const* prepend(String::data const*) const { TODO; }
     virtual String::data const* stretch(int) const { TODO; }
 
@@ -56,14 +56,17 @@ struct String::data : public Shared
     virtual int length() const noexcept = 0;
     virtual int length(size_t) const noexcept = 0;
 
-    virtual bool connects(char const*) const noexcept { return false; }
+    virtual bool connects(char const*) const noexcept { TODO; }
     virtual bool isASCII() const noexcept { return length() == size(); }
-    virtual char const* buffer() const noexcept { return nullptr; }
-    virtual char const* extent() const noexcept { return nullptr; }
-    virtual char const* origin() const noexcept { return nullptr; }
-    virtual int depth() const noexcept { return 1; }
+    virtual char const* buffer() const noexcept { TODO; }
+    virtual char const* extent() const noexcept { TODO; }
+    virtual char const* origin() const noexcept { TODO; }
+    virtual int depth() const noexcept { TODO; }
 
     static char const* evaluate(String::data const*&);
+
+protected:
+
 
 private:
     void* operator new(size_t n) { return ::operator new(n); }
@@ -80,6 +83,7 @@ private:
     String::data const* head(int) const override final { return Clone(this); }
     String::data const* tail(int) const override final { return Clone(this); }
     String::data const* prepend(String::data const* p) const override final { return Clone(p); }
+    String::data const* stretch(int) const override final { TODO; }
 
     void get(char* p, size_t n) const noexcept override final { assert(p && n); memset(p, 0, n); }
     Char_t at(int) const noexcept override final { return 0; }
@@ -146,7 +150,7 @@ private:
     int depth() const noexcept override final { TODO; }
 
     size_t const nSize;
-    int const nLength;
+    mutable int nLength;
     char cBuffer[1];  // <---- This must be the last data item!
 };
 
@@ -187,7 +191,11 @@ private:
 
 struct Tail final : public String::data, private ObjectGuard<Tail>
 {
-    // Tail(String::data const *p, int n) : pString(p), 
+    Tail(String::data const* p, int n) : pString(p), nReduceLength(n), nReduceSize(0)
+    {
+        assert(p && n > 0 && n < p->length());
+        assert(dynamic_cast<Buffer const*>(p));
+    }
 
 private:
     String::data const* append(String::data const*) const override final { TODO; }
@@ -211,8 +219,8 @@ private:
     int depth() const noexcept override final { TODO; }
 
     String::data const* const pString;
-    int nLength;
-    size_t nSize;
+    int nReduceLength;
+    size_t nReduceSize;
 };
 
 /***********************************************************************************************************************
@@ -289,9 +297,25 @@ String::data const* String::data::create(char const* p)
     return new(n) Buffer(p, n);
 }
 
-String::data const* String::data::create(Char_t c, int n)
+/***********************************************************************************************************************
+*** append()
+***********************************************************************************************************************/
+
+
+/***********************************************************************************************************************
+*** head()
+***********************************************************************************************************************/
+
+
+/***********************************************************************************************************************
+*** tail()
+***********************************************************************************************************************/
+
+String::data const* String::data::tail(int n) const
 {
-    TODO;
+    if (n < 1) return Clone(this);
+    if (n < length()) return new Tail(Clone(this), n);
+    return empty;
 }
 
 /***********************************************************************************************************************
@@ -341,7 +365,7 @@ String::String(int n, String const& r) : pData(r.pData->tail(n))
 {
 }
 
-String::String(char const* p) : pData((p) && (*p) ? String::data::create(p) : empty)
+String::String(char const* p) : pData(!!p && !!*p ? String::data::create(p) : empty)
 {
 }
 
