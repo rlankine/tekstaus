@@ -42,6 +42,7 @@ struct String final
 	String(String const&, int);
 	String(int, String const&);
 	String(char const*);
+	String(Char_t, int);
 	~String();
 
 	String& operator=(String const&);
