@@ -23,7 +23,7 @@ int main() try
 	String s('x', 99);
 	cout << s << endl;
 
-#if 0
+#if 1
 	String a = String('<', 1);
 	String b = String('<', 4);
 
