@@ -24,23 +24,34 @@ SOFTWARE.
 */
 
 #include "Tekstaus.h"
-#define VERBOSE
+// #define VERBOSE
 #include "Tools.h"
-#if defined(PROFILER)
-#undef PROFILER
-#endif
-#define PROFILER
+#define noexcept
 
 #include <assert.h>
 #include <string>
 
+#pragma intrinsic(memcmp, memcpy, memset, strcmp, strlen)
+
 //**********************************************************************************************************************
 
-#pragma intrinsic(memcmp, memcpy, memset, strcmp, strlen)
-#define noexcept
+int UTF8_length(char const* p, size_t n)
+{
+    assert(p);
+    return int(n);
+}
 
-#define BUFFER_LIMIT 1
-#define STACK_LIMIT 10000
+size_t UTF8_size(char const* p, int n)
+{
+    assert(p);
+    return size_t(n);
+}
+
+Char_t UTF8_char(char const* p)
+{
+    assert(p);
+    return Char_t(*p);
+}
 
 /***********************************************************************************************************************
 *** String::data
@@ -63,7 +74,6 @@ struct String::data : public Shared
     virtual size_t size() const noexcept = 0;
     virtual size_t size(int) const noexcept = 0;
     virtual int length() const noexcept = 0;
-    virtual int length(size_t) const noexcept = 0;
 
     virtual bool isASCII() const noexcept = 0;
     virtual char const* buffer() const noexcept = 0;
@@ -73,53 +83,10 @@ struct String::data : public Shared
 
     static char const* evaluate(String::data const*&);
 
-private:
-    void* operator new(size_t n) { return ::operator new(n); }
-    void* operator new[](size_t) = delete;
+protected:
+    size_t const BUFFER_LIMIT = 1;
+    size_t const STACK_LIMIT = 10000;
 };
-
-//----------------------------------------------------------------------------------------------------------------------
-
-String::data const* String::data::create()
-{
-    static struct : public String::data
-    {
-    private:
-        String::data const* append(String::data const* p) const override final { assert(p); return Clone(p); }
-        String::data const* head(int) const override final { return Clone(this); }
-        String::data const* tail(int) const override final { return Clone(this); }
-        String::data const* prepend(String::data const* p) const override final { assert(p); return Clone(p); }
-        String::data const* stretch(int n) const override final { if (n) FAIL("An attempt was made to stretch an unstretchable string data object."); else return Clone(this); }
-
-        void get(char* p, size_t n) const noexcept override final { assert(p && n); memset(p, '\0', n); }
-        Char_t at(int) const noexcept override final { return 0; }
-        size_t size() const noexcept override final { return 0; }
-        size_t size(int) const noexcept override final { return 0; }
-        int length() const noexcept override final { return 0; }
-        int length(size_t) const noexcept override final { return 0; }
-
-        bool isASCII() const noexcept override final { return true; }
-        char const* buffer() const noexcept override final { return &cData; }
-        char const* extent() const noexcept override final { return &cData; }
-        char const* origin() const noexcept override final { return &cData; }
-        int depth() const noexcept override final { return 0; }
-
-        char const cData = '\0';
-    } const instance;
-
-    return Clone(instance);
-}
-
-String::data const* String::data::append(String::data const* p) const
-{
-    assert(p);
-    return p->prepend(this);
-}
-
-String::data const* String::data::stretch(int n) const
-{
-    if (n) FAIL("An attempt was made to stretch an unstretchable string data object."); else return Clone(this);
-}
 
 /***********************************************************************************************************************
 *** StringBuffer
@@ -127,9 +94,27 @@ String::data const* String::data::stretch(int n) const
 
 struct StringBuffer final : public String::data, private ObjectGuard<StringBuffer>
 {
-    StringBuffer(char const*, size_t);
-    StringBuffer(String::data const*, size_t);
-    StringBuffer(String::data const*, size_t, String::data const*, size_t);
+    StringBuffer(char const* p, size_t n) : nSize(n), nLength(0)
+    {
+        assert(p && n && p[n] == '\0');
+        memcpy(cBuffer, p, n);
+        cBuffer[nSize] = '\0';
+    }
+
+    StringBuffer(String::data const* p) : nSize(p->size()), nLength(0)
+    {
+        assert(p);
+        p->get(cBuffer, nSize);
+        cBuffer[nSize] = '\0';
+    }
+
+    StringBuffer(String::data const* p, String::data const* q) : nSize(p->size() + q->size()), nLength(0)
+    {
+        assert(p && q);
+        p->get(cBuffer, p->size());
+        q->get(cBuffer + p->size(), q->size());
+        cBuffer[nSize] = '\0';
+    }
 
     void* operator new(size_t n, size_t k, bool = false) { return ::operator new(n + k); }
     void operator delete(void* p, size_t, bool) { ::operator delete(p); }
@@ -139,60 +124,28 @@ private:
 
     void* operator new(size_t) = delete;
 
-    String::data const* append(String::data const* p) const override final { return p->prepend(this); }
-    String::data const* head(int n) const override final { return String::data::head(n); }
-    String::data const* tail(int n) const override final { return String::data::tail(n); }
-    String::data const* prepend(String::data const* p) const override final { return String::data::prepend(p); }
-    String::data const* stretch(int n) const override final { return String::data::stretch(n); }
+    String::data const* append(String::data const* p) const override final;
+    String::data const* head(int n) const override final;
+    String::data const* tail(int n) const override final;
+    String::data const* prepend(String::data const* p) const override final;
+    String::data const* stretch(int n) const override final;
 
     void get(char*, size_t) const noexcept override final;
-    Char_t at(int) const noexcept override final;
+    Char_t at(int n) const noexcept override final;
     size_t size() const noexcept override final { return nSize; }
-    size_t size(int) const noexcept override final;
-    int length() const noexcept override final { return nLength; }
-    int length(size_t) const noexcept override final;
+    size_t size(int n) const noexcept override final;
+    int length() const noexcept override final { if (nLength) return nLength; nLength = UTF8_length(cBuffer, nSize); return nLength; }
 
-    bool isASCII() const noexcept override final { return nLength == nSize; }
+    bool isASCII() const noexcept override final { return length() == nSize; }
     char const* buffer() const noexcept override final { return cBuffer; }
     char const* extent() const noexcept override final { return cBuffer + nSize; }
     char const* origin() const noexcept override final { return cBuffer; }
     int depth() const noexcept override final { return 1; }
 
     size_t const nSize;
-    int nLength;
+    mutable int nLength;
     char cBuffer[1];  // <---- This must be the last data item!
 };
-
-//----------------------------------------------------------------------------------------------------------------------
-
-StringBuffer::StringBuffer(char const* p, size_t n) : nSize(n), nLength(int(n))
-{
-    assert(p && n);
-    memcpy(cBuffer, p, n);
-    cBuffer[n] = '\0';
-}
-
-StringBuffer::StringBuffer(String::data const* p, size_t n) : nSize(n), nLength(p->length())
-{
-    assert(p && n && n == p->size());
-    p->get(cBuffer, n);
-    cBuffer[n] = '\0';
-}
-
-StringBuffer::StringBuffer(String::data const* p, size_t n, String::data const* q, size_t k) : nSize(n + k), nLength(p->length() + q->length())
-{
-    assert(p && n && n == p->size() && q && k && k == p->size());
-    p->get(cBuffer, n);
-    q->get(cBuffer + n, k);
-    cBuffer[nSize] = '\0';
-}
-
-String::data const* String::data::create(char const* p)
-{
-    assert(p && *p);
-    auto n = strlen(p);
-    return new(n) StringBuffer(p, n);
-}
 
 /***********************************************************************************************************************
 *** StringTail
@@ -200,46 +153,36 @@ String::data const* String::data::create(char const* p)
 
 struct StringTail final : public String::data, private ObjectGuard<StringTail>
 {
-    StringTail(String::data const* p, int n) : pString(p), nCursor(n), nOffset(n)
+    StringTail(String::data const* p, int n) : pData(p), nCursor(n)
     {
         assert(p && n > 0 && n < p->length());
         assert(dynamic_cast<StringBuffer const*>(p));
     }
 
 private:
-    ~StringTail() { Erase(pString); }
+    ~StringTail() { Erase(pData); }
 
-    String::data const* append(String::data const* p) const override final { return p->prepend(this); }
-    String::data const* head(int n) const override final { return n < length() ? String::data::head(n) : Clone(this); }
-    String::data const* tail(int n) const override final { return n > 0 ? pString->tail(nCursor + n) : Clone(this); }
-    String::data const* prepend(String::data const* p) const override final { return String::data::prepend(p); }
-    String::data const* stretch(int n) const override final { assert(n > 0 && n <= nCursor); return pString->tail(nCursor - n); }
+    String::data const* append(String::data const* p) const override final;
+    String::data const* head(int n) const override final;
+    String::data const* tail(int n) const override final;
+    String::data const* prepend(String::data const* p) const override final;
+    String::data const* stretch(int n) const override final;
 
     void get(char*, size_t) const noexcept override final;
-    Char_t at(int n) const noexcept override final { return n < 0 ? 0 : pString->at(nCursor + n); }
-    size_t size() const noexcept override final { return pString->size() - nOffset; }
-    size_t size(int) const noexcept override final;
-    int length() const noexcept override final { return pString->length() - nCursor; }
-    int length(size_t) const noexcept override final;
+    Char_t at(int n) const noexcept override final;
+    size_t size() const noexcept override final { return pData->size() - size(nCursor); }
+    size_t size(int n) const noexcept override final;
+    int length() const noexcept override final { return pData->length() - nCursor; }
 
     bool isASCII() const noexcept override final { return length() == size(); }
-    char const* buffer() const noexcept override final { return pString->buffer() + nOffset; }
-    char const* extent() const noexcept override final { return pString->extent(); }
-    char const* origin() const noexcept override final { return pString->origin() + nOffset; }
+    char const* buffer() const noexcept override final { return pData->buffer() + size(nCursor); }
+    char const* extent() const noexcept override final { return pData->extent(); }
+    char const* origin() const noexcept override final { return pData->origin() + size(nCursor); }
     int depth() const noexcept override final { return 2; }
 
-    String::data const* const pString;
+    String::data const* const pData;
     int nCursor;
-    size_t nOffset;
 };
-
-//----------------------------------------------------------------------------------------------------------------------
-
-String::data const* String::data::tail(int n) const
-{
-    assert(n > 0 && n < length());
-    return new StringTail(Clone(this), n);
-}
 
 /***********************************************************************************************************************
 *** StringHead
@@ -247,46 +190,36 @@ String::data const* String::data::tail(int n) const
 
 struct StringHead final : public String::data, private ObjectGuard<StringHead>
 {
-    StringHead(String::data const* p, int n) noexcept : pString(p), nCursor(n), nSize(n)
+    StringHead(String::data const* p, int n) noexcept : pData(p), nLength(n)
     {
         assert(p && n > 0 && n < p->length());
         assert(dynamic_cast<StringBuffer const*>(p) || dynamic_cast<StringTail const*>(p));
     }
 
 private:
-    ~StringHead() { Erase(pString); }
+    ~StringHead() { Erase(pData); }
 
-    String::data const* append(String::data const* p) const override final { assert(p); return p->origin() == extent() ? p->stretch(nCursor) : p->prepend(this); }
-    String::data const* head(int n) const override final { return n < nCursor ? pString->head(n) : Clone(this); }
-    String::data const* tail(int) const override final;
-    String::data const* prepend(String::data const* p) const override final { return String::data::prepend(p); }
-    String::data const* stretch(int n) const override final { assert(n > 0); auto step0 = pString->stretch(n); auto step1 = step0->head(nCursor + n); Erase(step0); return step1; }
+    String::data const* append(String::data const* p) const override final;
+    String::data const* head(int n) const override final;
+    String::data const* tail(int n) const override final;
+    String::data const* prepend(String::data const* p) const override final;
+    String::data const* stretch(int n) const override final;
 
     void get(char*, size_t) const noexcept override final;
-    Char_t at(int n) const noexcept override final { return n < nCursor ? pString->at(n) : 0; }
-    size_t size() const noexcept override final { return nSize; }
-    size_t size(int) const noexcept override final;
-    int length() const noexcept override final { return nCursor; }
-    int length(size_t) const noexcept override final;
+    Char_t at(int n) const noexcept override final;
+    size_t size() const noexcept override final { return pData->size(nLength); }
+    size_t size(int n) const noexcept override final;
+    int length() const noexcept override final { return nLength; }
 
-    bool isASCII() const noexcept override final { return nCursor == nSize; }
+    bool isASCII() const noexcept override final { return length() == size(); }
     char const* buffer() const noexcept override final { return nullptr; }
-    char const* extent() const noexcept override final { return pString->origin() + nSize; }
-    char const* origin() const noexcept override final { return pString->origin(); }
-    int depth() const noexcept override final { return pString->depth() + 1; }
+    char const* extent() const noexcept override final { return pData->origin() + size(); }
+    char const* origin() const noexcept override final { return pData->origin(); }
+    int depth() const noexcept override final { return pData->depth() + 1; }
 
-    String::data const* const pString;
-    int nCursor;
-    size_t nSize;
+    String::data const* const pData;
+    int nLength;
 };
-
-//----------------------------------------------------------------------------------------------------------------------
-
-String::data const* String::data::head(int n) const
-{
-    assert(n > 0 && n < length());
-    return new StringHead(Clone(this), n);
-}
 
 /***********************************************************************************************************************
 *** StringAppend
@@ -294,87 +227,46 @@ String::data const* String::data::head(int n) const
 
 struct StringAppend final : public String::data, private ObjectGuard<StringAppend>
 {
-    StringAppend(String::data const* p, String::data const* q) noexcept : pHead(p), pTail(q), nCursor(pHead->length()), nHead(pHead->size())
+    StringAppend(String::data const* p, String::data const* q) noexcept :
+        pHead(p),
+        pTail(q),
+        nCursor(p->length()),
+        nLength(nCursor + q->length()),
+        nSize(p->size() + q->size()),
+        nDepth(std::max(pHead->depth(), pTail->depth()) + 1)
     {
-        assert(!!p && p->length() > 0 && !!q && q->length() > 0);
+        assert(p && q);
+        assert(nCursor > 0 && nLength > nCursor);
     }
 
 private:
     ~StringAppend() { Erase(pHead); Erase(pTail); }
 
     String::data const* append(String::data const*) const override final;
-    String::data const* head(int n) const override final { if (n > nCursor) { auto step0 = pTail->head(n - nCursor); auto step1 = pHead->append(step0); Erase(step0); return step1; } return pHead->head(n); }
-    String::data const* tail(int) const override final;
+    String::data const* head(int n) const override final;
+    String::data const* tail(int n) const override final;
     String::data const* prepend(String::data const*) const override final;
-    String::data const* stretch(int n) const override final { auto step0 = pHead->stretch(n); auto step1 = step0->append(pTail); Erase(step0); return step1; }
+    String::data const* stretch(int n) const override final;
 
     void get(char*, size_t) const noexcept override final;
-    Char_t at(int n) const noexcept override final { return n < nCursor ? pHead->at(n) : pTail->at(n - nCursor); }
-    size_t size() const noexcept override final { return pHead->size() + pTail->size(); }
-    size_t size(int) const noexcept override final;
-    int length() const noexcept override final { return nCursor + pTail->length(); }
-    int length(size_t n) const noexcept override final;
+    Char_t at(int n) const noexcept override final;
+    size_t size() const noexcept override final { return nSize; }
+    size_t size(int n) const noexcept override final;
+    int length() const noexcept override final { return nLength; }
 
-    bool isASCII() const noexcept override final { return length() == size(); }
+    bool isASCII() const noexcept override final { return nLength == nSize; }
     char const* buffer() const noexcept override final { return nullptr; }
     char const* extent() const noexcept override final { return pTail->extent(); }
     char const* origin() const noexcept override final { return pHead->origin(); }
-    int depth() const noexcept override final { return std::max(pHead->depth(), pTail->depth()) + 1; }
+    int depth() const noexcept override final { return nDepth; }
 
     String::data const* const pHead;
     String::data const* const pTail;
     int nCursor;
-    size_t const nHead;
+    int nLength;
+    size_t const nSize;
+    int nDepth;
 };
-
-//----------------------------------------------------------------------------------------------------------------------
-
-String::data const* StringAppend::append(String::data const* p) const
-{
-    if (pHead->depth() > std::max(p->depth(), pTail->depth()))
-    {
-        auto step0 = pTail->append(p);
-        auto step1 = pHead->append(step0);
-
-        Erase(step0);
-
-        return step1;
-    }
-
-    return p->prepend(this);
-}
-
-String::data const* StringAppend::prepend(String::data const* p) const
-{
-    PROFILER;
-
-    if (pTail->depth() > std::max(p->depth(), pHead->depth()))
-    {
-        auto step0 = p->append(pHead);
-        auto step1 = step0->append(pTail);
-
-        Erase(step0);
-
-        return step1;
-    }
-
-    return String::data::prepend(p);
-}
-
-String::data const* String::data::prepend(String::data const* p) const
-{
-    assert(p);
-
-    auto n = p->size();
-    auto k = size();
-
-    if (n + k > BUFFER_LIMIT && std::max(p->depth(), depth()) < STACK_LIMIT)
-    {
-        return new StringAppend(Clone(p), Clone(this));
-    }
-
-    return new(n + k) StringBuffer(p, n, this, k);
-}
 
 /***********************************************************************************************************************
 *** StringRepeat
@@ -388,18 +280,17 @@ struct StringRepeat final : public String::data, private ObjectGuard<StringRepea
     }
 
 private:
-    String::data const* append(String::data const* p) const override final { assert(p); return p->origin() == extent() ? p->stretch(length()) : p->prepend(this); }
-    String::data const* head(int n) const override final { assert(n > 0); return n < nLength ? create(cData, n) : Clone(this); }
-    String::data const* tail(int n) const override final { return create(cData, nLength - n); }
-    String::data const* prepend(String::data const* p) const override final { return String::data::prepend(p); }
-    String::data const* stretch(int n) const override final { assert(n > 0); return create(cData, nLength + n); }
+    String::data const* append(String::data const* p) const override final;
+    String::data const* head(int n) const override final;
+    String::data const* tail(int n) const override final;
+    String::data const* prepend(String::data const* p) const override final;
+    String::data const* stretch(int n) const override final;
 
     void get(char*, size_t) const noexcept override final;
-    Char_t at(int n) const noexcept override final { return n < 0 ? 0 : n < nLength ? cData : 0; }
+    Char_t at(int n) const noexcept override final;
     size_t size() const noexcept override final { return nSize; }
-    size_t size(int) const noexcept override final;
+    size_t size(int n) const noexcept override final;
     int length() const noexcept override final { return nLength; }
-    int length(size_t) const noexcept override final;
 
     bool isASCII() const noexcept override final { return !(cData & 0xFFFFFF80); }
     char const* buffer() const noexcept override final { return nullptr; }
@@ -414,51 +305,42 @@ private:
     int const nLength;
 };
 
-//----------------------------------------------------------------------------------------------------------------------
-
-String::data const* String::data::create(Char_t c, int n)
-{
-    assert(c && n);
-    return new StringRepeat(c, n);
-}
-
 /***********************************************************************************************************************
-*** tail()
+*** StringBuffer
 ***********************************************************************************************************************/
 
-String::data const* StringHead::tail(int n) const
+String::data const* StringBuffer::append(String::data const* p) const
 {
-    auto step0 = pString->tail(n);
-    auto step1 = step0->head(nCursor - n);
-
-    Erase(step0);
-
-    return step1;
+    assert(p);
+    return p->prepend(this);
 }
 
-String::data const* StringAppend::tail(int n) const
+String::data const* StringBuffer::head(int n) const
 {
-    if (n < nCursor)
-    {
-        auto step0 = pHead->tail(n);
-        auto step1 = step0->append(pTail);
-
-        Erase(step0);
-
-        return step1;
-    }
-
-    if (n > nCursor)
-    {
-        return pTail->tail(n - nCursor);
-    }
-
-    return Clone(pTail);
+    if (n <= 0) return create();
+    if (n < length()) return new StringHead(Clone(this), n);
+    return Clone(this);
 }
 
-/***********************************************************************************************************************
-*** get()
-***********************************************************************************************************************/
+String::data const* StringBuffer::tail(int n) const
+{
+    if (n <= 0) return Clone(this);
+    if (n < length()) return new StringTail(Clone(this), n);
+    return create();
+}
+
+String::data const* StringBuffer::prepend(String::data const* p) const
+{
+    assert(p);
+    if (p->size() + size() <= BUFFER_LIMIT || p->depth() >= STACK_LIMIT) return new(p->size() + size()) StringBuffer(p, this);
+    return new StringAppend(Clone(p), Clone(this));
+}
+
+String::data const* StringBuffer::stretch(int n) const
+{
+    assert(n == 0);
+    return Clone(this);
+}
 
 void StringBuffer::get(char* p, size_t n) const noexcept
 {
@@ -475,44 +357,253 @@ void StringBuffer::get(char* p, size_t n) const noexcept
     }
 }
 
+Char_t StringBuffer::at(int n) const noexcept
+{
+    if (n < 0) return '\0';
+    if (n < length()) return UTF8_char(cBuffer + size(n));
+    return '\0';
+}
+
+size_t StringBuffer::size(int n) const noexcept
+{
+    if (n <= 0) return 0;
+    if (n < length()) return UTF8_size(cBuffer, n);
+    return size();
+}
+
+/***********************************************************************************************************************
+*** StringTail
+***********************************************************************************************************************/
+
+String::data const* StringTail::append(String::data const* p) const
+{
+    assert(p);
+    return p->prepend(this);
+}
+
+String::data const* StringTail::head(int n) const
+{
+    if (n <= 0) return create();
+    if (n < length()) return new StringHead(Clone(this), n);
+    return Clone(this);
+}
+
+String::data const* StringTail::tail(int n) const
+{
+    if (n <= 0) return Clone(this);
+    if (n < length()) return pData->tail(nCursor + n);
+    return create();
+}
+
+String::data const* StringTail::prepend(String::data const* p) const
+{
+    assert(p);
+    if (p->size() + size() <= BUFFER_LIMIT || p->depth() >= STACK_LIMIT) return new(p->size() + size()) StringBuffer(p, this);
+    return new StringAppend(Clone(p), Clone(this));
+}
+
+String::data const* StringTail::stretch(int n) const
+{
+    assert(n >= 0 && n <= nCursor);
+    return pData->tail(nCursor - n);
+}
+
 void StringTail::get(char* p, size_t n) const noexcept
 {
     assert(p && n);
 
-    auto pBuffer = buffer();
-    auto nSize = pString->size() - nOffset;
-
-    if (n > nSize)
+    if (n > size())
     {
-        memcpy(p, pBuffer, nSize);
-        memset(p + nSize, '\0', n - nSize);
+        memcpy(p, buffer(), size());
+        memset(p + size(), '\0', n - size());
     }
     else
     {
-        memcpy(p, pBuffer, n);
+        memcpy(p, buffer(), n);
     }
+}
+
+Char_t StringTail::at(int n) const noexcept
+{
+    if (n < 0) return '\0';
+    if (n < length()) return pData->at(nCursor + n);
+    return '\0';
+}
+
+size_t StringTail::size(int n) const noexcept
+{
+    if (n <= 0) return 0;
+    if (n < length()) return pData->size(nCursor + n) - pData->size(nCursor);
+    return pData->size() - pData->size(nCursor);
+}
+
+/***********************************************************************************************************************
+*** StringHead
+***********************************************************************************************************************/
+
+String::data const* StringHead::append(String::data const* p) const
+{
+    assert(p);
+    if (p->origin() == extent()) return p->stretch(nLength);
+    return p->prepend(this);
+}
+
+String::data const* StringHead::head(int n) const
+{
+    if (n <= 0) return create();
+    if (n < length()) return pData->head(n);
+    return Clone(this);
+}
+
+String::data const* StringHead::tail(int n) const
+{
+    if (n <= 0) return Clone(this);
+
+    if (n < length())
+    {
+        auto step0 = pData->tail(n);
+        auto step1 = step0->head(nLength - n);
+        Erase(step0);
+        return step1;
+    }
+
+    return create();
+}
+
+String::data const* StringHead::prepend(String::data const* p) const
+{
+    assert(p);
+    if (p->size() + size() <= BUFFER_LIMIT || p->depth() >= STACK_LIMIT) return new(p->size() + size()) StringBuffer(p, this);
+    return new StringAppend(Clone(p), Clone(this));
+}
+
+String::data const* StringHead::stretch(int n) const
+{
+    assert(n > 0);
+
+    auto step0 = pData->stretch(n);
+    auto step1 = step0->head(nLength + n);
+    
+    Erase(step0);
+    
+    return step1;
 }
 
 void StringHead::get(char* p, size_t n) const noexcept
 {
     assert(p && n);
 
-    if (n > nSize)
+    if (n > UTF8_size(pData->buffer(), nLength))
     {
-        pString->get(p, nSize);
-        memset(p + nSize, '\0', n - nSize);
+        pData->get(p, size());
+        memset(p + size(), '\0', n - size());
     }
     else
     {
-        pString->get(p, n);
+        pData->get(p, n);
     }
+}
+
+Char_t StringHead::at(int n) const noexcept
+{
+    if (n < length()) return pData->at(n);
+    return '\0';
+}
+
+size_t StringHead::size(int n) const noexcept
+{
+    if (n < length()) return pData->size(n);
+    return pData->size(length());
+}
+
+/***********************************************************************************************************************
+*** StringAppend
+***********************************************************************************************************************/
+
+String::data const* StringAppend::append(String::data const* p) const
+{
+    assert(p);
+
+    if (pHead->depth() > std::max(p->depth(), pTail->depth()))
+    {
+        auto step0 = pTail->append(p);
+        auto step1 = pHead->append(step0);
+
+        Erase(step0);
+
+        return step1;
+    }
+
+    return p->prepend(this);
+}
+
+String::data const* StringAppend::head(int n) const
+{
+    if (n <= 0) return create();
+    if (n < pHead->length()) return pHead->head(n);
+    if (n == pHead->length()) return Clone(pHead);
+
+    if (n < length())
+    {
+        auto step0 = pTail->head(n - nCursor);
+        auto step1 = pHead->append(step0);
+
+        Erase(step0);
+
+        return step1;
+    }
+
+    return Clone(this);
+}
+
+String::data const* StringAppend::tail(int n) const
+{
+    if (n <= 0) return Clone(this);
+
+    if (n < pHead->length())
+    {
+        auto step0 = pHead->tail(n);
+        auto step1 = step0->append(pTail);
+        Erase(step0);
+        return step1;
+    }
+
+    if (n == pHead->length()) return Clone(pTail);
+    if (n < length()) return pTail->tail(n - pHead->length());
+    return create();
+}
+
+String::data const* StringAppend::prepend(String::data const* p) const
+{
+    assert(p);
+
+    if (pTail->depth() > std::max(p->depth(), pHead->depth()))
+    {
+        auto step0 = p->append(pHead);
+        auto step1 = step0->append(pTail);
+        Erase(step0);
+        return step1;
+    }
+
+    if (p->size() + size() <= BUFFER_LIMIT && std::max(p->depth(), depth()) >= STACK_LIMIT) return new(p->size() + size()) StringBuffer(p, this);
+    return new StringAppend(Clone(p), Clone(this));
+}
+
+String::data const* StringAppend::stretch(int n) const
+{
+    auto step0 = pHead->stretch(n);
+    auto step1 = step0->append(pTail);
+    
+    Erase(step0);
+    
+    return step1;
 }
 
 void StringAppend::get(char* p, size_t n) const noexcept
 {
-    PROFILER;
-
     assert(p && n);
+
+    auto nHead = pHead->size();
 
     if (n > nHead)
     {
@@ -525,10 +616,54 @@ void StringAppend::get(char* p, size_t n) const noexcept
     }
 }
 
+Char_t StringAppend::at(int n) const noexcept
+{
+    return n < nCursor ? pHead->at(n) : pTail->at(n - nCursor);
+}
+
+size_t StringAppend::size(int n) const noexcept
+{
+    if (n <= 0) return 0;
+    if (n < nCursor) return pHead->size(n);
+    if (n == nCursor) return pHead->size();
+    if (n < nLength) return pHead->size() + pTail->size(n - nCursor);
+    return size();
+}
+
+/***********************************************************************************************************************
+*** StringRepeat
+***********************************************************************************************************************/
+
+String::data const* StringRepeat::append(String::data const* p) const
+{
+    assert(p);
+    return p->origin() == extent() ? p->stretch(length()) : p->prepend(this);
+}
+
+String::data const* StringRepeat::head(int n) const
+{
+    return n < nLength ? create(cData, n) : Clone(this);
+}
+
+String::data const* StringRepeat::tail(int n) const
+{
+    return create(cData, nLength - n);
+}
+
+String::data const* StringRepeat::prepend(String::data const* p) const
+{
+    assert(p);
+    if (p->size() + size() <= BUFFER_LIMIT && p->depth() >= STACK_LIMIT) return new(p->size() + size()) StringBuffer(p, this);
+    return new StringAppend(Clone(p), Clone(this));
+}
+
+String::data const* StringRepeat::stretch(int n) const
+{
+    assert(n > 0); return create(cData, nLength + n);
+}
+
 void StringRepeat::get(char* p, size_t n) const noexcept
 {
-    PROFILER;
-
     assert(p && n);
 
     if (n > nSize)
@@ -542,97 +677,97 @@ void StringRepeat::get(char* p, size_t n) const noexcept
     }
 }
 
-/***********************************************************************************************************************
-*** at()
-***********************************************************************************************************************/
+Char_t StringRepeat::at(int n) const noexcept
+{
+    if (n < 0)
+    {
+        return 0;
+    }
 
-Char_t StringBuffer::at(int n) const noexcept
+    if (n < nLength)
+    {
+        return cData;
+    }
+
+    return 0;
+}
+
+size_t StringRepeat::size(int n) const noexcept
 {
     TODO;
 }
 
 /***********************************************************************************************************************
-*** size(int)
+*** String::data
 ***********************************************************************************************************************/
 
-size_t StringBuffer::size(int n) const noexcept
+String::data const* String::data::create()
 {
-    assert(n > 0 && n < nLength);
+    static struct : public String::data
+    {
+    private:
+        String::data const* append(String::data const* p) const override final { assert(p); return Clone(p); }
+        String::data const* head(int) const override final { return Clone(this); }
+        String::data const* tail(int) const override final { return Clone(this); }
+        String::data const* prepend(String::data const* p) const override final { assert(p); return Clone(p); }
+        String::data const* stretch(int n) const override final { if (n) FAIL("An attempt was made to stretch an unstretchable string data object."); return Clone(this); }
 
-    if (nLength == nSize) return n;
+        void get(char* p, size_t n) const noexcept override final { assert(p && n); memset(p, '\0', n); }
+        Char_t at(int) const noexcept override final { return 0; }
+        size_t size() const noexcept override final { return 0; }
+        size_t size(int) const noexcept override final { return 0; }
+        int length() const noexcept override final { return 0; }
 
-    PROFILER; TODO;
+        bool isASCII() const noexcept override final { return true; }
+        char const* buffer() const noexcept override final { return &cData; }
+        char const* extent() const noexcept override final { return &cData; }
+        char const* origin() const noexcept override final { return &cData; }
+        int depth() const noexcept override final { return 0; }
+
+        char const cData = '\0';
+    } const instance;
+
+    return Clone(instance);
 }
 
-size_t StringTail::size(int) const noexcept
+String::data const* String::data::create(char const* p)
 {
-    PROFILER; TODO;
+    assert(p);
+
+    auto n = strlen(p);
+
+    if (n > 0)
+    {
+        return new(n) StringBuffer(p, n);
+    }
+
+    return create();
 }
 
-size_t StringHead::size(int) const noexcept
+String::data const* String::data::create(Char_t c, int n)
 {
-    PROFILER; TODO;
+    assert(n >= 0);
+
+    if (c != '\0' && n > 0)
+    {
+        return new StringRepeat(c, n);
+    }
+
+    return create();
 }
-
-size_t StringAppend::size(int n) const noexcept
-{
-    PROFILER; TODO;
-    return n < nCursor ? pHead->size(n) : pHead->size() + pTail->size(n - nCursor);
-}
-
-size_t StringRepeat::size(int) const noexcept
-{
-    PROFILER; TODO;
-}
-
-/***********************************************************************************************************************
-*** length(size_t)
-***********************************************************************************************************************/
-
-int StringBuffer::length(size_t) const noexcept
-{
-    PROFILER; TODO;
-}
-
-int StringTail::length(size_t) const noexcept
-{
-    PROFILER; TODO;
-}
-
-int StringHead::length(size_t) const noexcept
-{
-    PROFILER; TODO;
-}
-
-int StringAppend::length(size_t) const noexcept
-{
-    PROFILER; TODO;
-}
-
-int StringRepeat::length(size_t) const noexcept
-{
-    PROFILER; TODO;
-}
-
-/***********************************************************************************************************************
-*** evaluate()
-***********************************************************************************************************************/
 
 char const* String::data::evaluate(String::data const*& p)
 {
-    PROFILER;
-
     assert(p);
 
     auto result = p->buffer();
 
     if (!result)
     {
-        auto nSize = p->size();
-        auto pString = new(nSize) StringBuffer(p, nSize);
+        auto pData = new(p->size()) StringBuffer(p);
 
         Erase(p);
-        p = pString;
+        p = pData;
         result = p->buffer();
     }
 
@@ -667,7 +802,7 @@ String::String(char const* p) : pData(p != 0 && *p != '\0' ? String::data::creat
 {
 }
 
-String::String(Char_t c, int n) : pData(c != 0 && n != 0 ? String::data::create(c, n) : String::data::create())
+String::String(Char_t c, int n) : pData(c != 0 && n > 0 ? String::data::create(c, n) : String::data::create())
 {
 }
 

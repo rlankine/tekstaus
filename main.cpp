@@ -6,37 +6,40 @@
 using std::cout;
 using std::endl;
 
-String Reverse1(String const& r)
+void evaluate(char const*p)
 {
-	auto mid = r.Length() / 2;
-
-	return mid ? Reverse1(r.Tail(mid)) + Reverse1(r.Head(mid)) : r;
-}
-
-String Reverse2(String const& r)
-{
-	return r.Length() > 1 ? Reverse2(r.Tail(1)) + r.Head(1) : r;
+	// cout << p << endl;
 }
 
 int main() try
 {
-	String s('x', 99);
-	cout << s << endl;
+	String a;
+	String b("");
+	String c("HelloWorld");
+	String d(c, 5);
+	String e(5, c);
+	String f(c, c);
 
-#if 1
-	String a = String('<', 1);
-	String b = String('<', 4);
+	String s[] = { a, b, c, d, e, f };
 
-	cout << (a + b).Head(3) << "|" << (a + b).Tail(3) << endl;
+	for (auto& item : s)
+	{
+		evaluate(item);
+	}
 
-	String HW = "HelloWorld";
-	String greeting = String('>',5) + HW.Head(5) + ", " + HW.Tail(5) + "!" + String('<',5);
-	cout << greeting << endl;
-	greeting = Reverse1(greeting);
-	cout << greeting << endl;
-	greeting = Reverse2(greeting);
-	cout << greeting << endl;
-#endif
+	for (auto& head : s) for(auto & tail : s)
+	{
+		evaluate(head + tail);
+
+		for (int i = -1; i < 12; ++i)
+		{
+			auto data = head + tail;
+
+			evaluate(data.Head(i));
+			evaluate(data.Tail(i));
+		}
+	}
+
 	return EXIT_SUCCESS;
 }
 catch (char const* p)
