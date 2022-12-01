@@ -2,7 +2,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Risto Lankinen
+Copyright (c) 2022 Risto Lankinen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ SOFTWARE.
 //**********************************************************************************************************************
 
 #define FAIL(why) do { std::cerr << std::endl << "Function '" __FUNCTION__ "(...)' failed: " why "." << std::endl; abort(); } while(false)
-#define PROFILER do { static auto f=__FUNCTION__; static auto l=__LINE__; static struct S { int n{}; ~S() { std::cerr << "PROFILER: Function '" << f << "(...)' line " << l << " was invoked " << n << " times." << std::endl; } } s; ++s.n; } while (false)
+#define PROFILER do { static auto f=__FUNCTION__; static auto l=__LINE__; static struct S { int n{}; ~S() { std::cerr << "PROFILER: Function \"" << f << "(...)\" line " << l << " was invoked " << n << " times." << std::endl; } } s; ++s.n; } while (false)
 #define TODO do { throw "TODO: Function '" __FUNCTION__ "(...)'."; } while(false)
 #define UNREACHABLE do { std::cerr << std::endl << "Executing code that was thought to be unreachable at '" __FUNCTION__ "(...)' line " << __LINE__ << "." << std::endl; abort(); } while(false)
 #if !defined(_DEBUG)
